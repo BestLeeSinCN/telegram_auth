@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Telegram Auth</title>
+</head>
+<body>
+<script>
+  (function () {
+    try {
+      // 解析 Telegram 回调参数
+      const params = new URLSearchParams(window.location.search);
+      const data = {};
+
+      for (const [key, value] of params.entries()) {
+        data[key] = value;
+      }
+
+      // 发给 opener（Flutter Web）
+      if (window.opener) {
+        window.opener.postMessage(data, '*');
+      }
+
+      // 兜底：3 秒后强制关闭
+      setTimeout(() => {
+        window.close();
+      }, 3000);
+
+      // 尝试立即关闭
+      window.close();
+    } catch (e) {
+      console.error('Telegram redirect error:', e);
+    }
+  })();
+</script>
+
+<p>Telegram 授权处理中，请稍候…</p>
+</body>
+</html>
