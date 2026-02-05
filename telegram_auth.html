@@ -1,23 +1,28 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>Telegram Auth Debug</title>
+  <title>Telegram Auth</title>
 </head>
 <body>
-  <h1>Telegram Redirect Page</h1>
+  <p>Telegram 授权处理中，请稍候…</p>
 
   <script>
-    alert('JS 已执行');
+    (function () {
+      try {
+        if (!window.location.hash.startsWith('#tgAuthResult=')) {
+          console.log('No tgAuthResult found');
+          return;
+        }
 
-    console.log('JS 已执行');
-    console.log('href:', window.location.href);
-    console.log('hash:', window.location.hash);
+        console.log('Telegram redirect hash:', window.location.hash);
 
-    document.body.insertAdjacentHTML(
-      'beforeend',
-      '<pre>' + window.location.href + '</pre>'
-    );
+        // 什么都不用做
+        // Flutter Web 会在 reload 后自行解析 hash
+      } catch (e) {
+        console.error('Telegram redirect error:', e);
+      }
+    })();
   </script>
 </body>
 </html>
