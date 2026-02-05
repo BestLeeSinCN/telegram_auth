@@ -1,41 +1,46 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <title>Telegram Auth</title>
-</head>
-<body>
 <script>
 (function () {
   try {
-    // Telegram 新版：数据在 hash 里
-    const hash = window.location.hash;
+    console.log('location.href:', window.location.href);
+    console.log('location.hash:', window.location.hash);
 
-    if (!hash.startsWith('#tgAuthResult=')) {
-      console.error('No tgAuthResult in hash');
-      return;
+    let data = {};
+
+    // 1️⃣ Telegram 新版：数据在 hash 里
+    if (window.location.hash.startsWith('#tgAuthResult=')) {
+      const encoded = window.location.hash.replace('#tgAuthResult=', '');
+
+      // Base64URL → Base64
+      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const json = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+
+      data = JSON.parse(json);
+      console.log('Telegram auth data (hash):', data);
     }
 
-    const encoded = hash.substring('#tgAuthResult='.length);
+    // 2️⃣ 兜底：老版本 query 方式
+    if (!Object.keys(data).length) {
+      const params = new URLSearchParams(window.location.search);
+      for (const [key, value] of params.entries()) {
+        data[key] = value;
+      }
+      console.log('Telegram auth data (query):', data);
+    }
 
-    // ⚠️ 注意：这里不 decode，让 Flutter 去处理
-    const data = {
-      tgAuthResult: encoded
-    };
-
-    console.log('Telegram auth data:', data);
-
-    if (window.opener) {
+    // 3️⃣ 回传给 Flutter Web
+    if (window.opener && Object.keys(data).length) {
       window.opener.postMessage(data, '*');
+      console.log('postMessage sent');
     }
 
-    setTimeout(() => window.close(), 300);
+    setTimeout(() => window.close(), 500);
   } catch (e) {
     console.error('Telegram redirect error:', e);
   }
 })();
 </script>
-
-<p>Telegram 授权处理中，请稍候…</p>
-</body>
-</html>
