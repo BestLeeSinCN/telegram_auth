@@ -3,296 +3,499 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Telegram 授权中...</title>
+  <title>Telegram 登录</title>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
+                   "Helvetica Neue", Arial, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 20px;
     }
+
     .container {
-      text-align: center;
-      padding: 2rem;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      backdrop-filter: blur(10px);
-      max-width: 600px;
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 480px;
       width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
     }
-    .spinner {
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top: 4px solid white;
+
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+      background: linear-gradient(135deg, #54a0ff, #667eea);
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1rem;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .log {
-      margin-top: 1rem;
-      padding: 1rem;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 8px;
-      text-align: left;
-      font-size: 12px;
-      max-height: 400px;
-      overflow-y: auto;
-      font-family: monospace;
-    }
-    .log-item {
-      margin: 4px 0;
-      padding: 4px;
-      border-left: 3px solid #4ade80;
-      word-break: break-all;
-    }
-    .log-error {
-      border-left-color: #f87171;
-    }
-    .log-success {
-      border-left-color: #4ade80;
-    }
-    .log-info {
-      border-left-color: #60a5fa;
-    }
-    .buttons {
-      margin-top: 1rem;
       display: flex;
-      gap: 10px;
+      align-items: center;
       justify-content: center;
+      font-size: 40px;
+      animation: pulse 2s ease-in-out infinite;
     }
-    button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      cursor: pointer;
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    h1 {
+      font-size: 24px;
+      color: #2d3748;
+      margin-bottom: 12px;
       font-weight: 600;
-      transition: all 0.2s;
     }
-    .btn-close {
-      background: #ef4444;
-      color: white;
+
+    .subtitle {
+      color: #718096;
+      font-size: 15px;
+      margin-bottom: 32px;
+      line-height: 1.6;
     }
-    .btn-close:hover {
-      background: #dc2626;
-    }
-    .btn-copy {
-      background: #3b82f6;
-      color: white;
-    }
-    .btn-copy:hover {
-      background: #2563eb;
-    }
-    .countdown {
+
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px 24px;
+      background: #f7fafc;
+      border-radius: 12px;
+      margin-bottom: 24px;
       font-size: 14px;
-      margin-top: 10px;
-      opacity: 0.8;
+      color: #4a5568;
+      font-weight: 500;
+    }
+
+    .status.success {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .status.error {
+      background: #fed7d7;
+      color: #742a2a;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .checkmark {
+      width: 18px;
+      height: 18px;
+      color: #38a169;
+    }
+
+    .error-icon {
+      width: 18px;
+      height: 18px;
+      color: #e53e3e;
+    }
+
+    .logs {
+      background: #1a202c;
+      border-radius: 12px;
+      padding: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      text-align: left;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 24px;
+      scrollbar-width: thin;
+      scrollbar-color: #4a5568 #2d3748;
+    }
+
+    .logs::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .logs::-webkit-scrollbar-track {
+      background: #2d3748;
+      border-radius: 4px;
+    }
+
+    .logs::-webkit-scrollbar-thumb {
+      background: #4a5568;
+      border-radius: 4px;
+    }
+
+    .log-entry {
+      margin-bottom: 8px;
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+
+    .log-time {
+      color: #718096;
+      margin-right: 8px;
+    }
+
+    .log-info { color: #63b3ed; }
+    .log-success { color: #68d391; }
+    .log-error { color: #fc8181; }
+    .log-warn { color: #f6ad55; }
+
+    .footer {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #e2e8f0;
+      color: #a0aec0;
+      font-size: 13px;
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* 隐藏模式 - 当在 iframe 中时 */
+    body.hidden-mode {
+      background: transparent;
+      padding: 0;
+    }
+
+    body.hidden-mode .container {
+      display: none;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="spinner" id="spinner"></div>
-    <h2>Telegram 授权处理</h2>
-    <p id="status">正在处理授权数据...</p>
-    <div class="countdown" id="countdown"></div>
-    <div class="log" id="log"></div>
-    <div class="buttons">
-      <button class="btn-copy" onclick="copyLogs()">📋 复制日志</button>
-      <button class="btn-close" onclick="window.close()">❌ 手动关闭</button>
+    <div class="logo">✈️</div>
+    <h1 id="title">正在连接 Telegram</h1>
+    <p class="subtitle" id="subtitle">请稍候，正在准备授权...</p>
+    
+    <div class="status" id="status">
+      <div class="spinner"></div>
+      <span id="status-text">初始化中...</span>
+    </div>
+
+    <div class="logs" id="logs"></div>
+
+    <div class="footer">
+      由 <a href="https://telegram.org" target="_blank">Telegram</a> 提供安全登录
     </div>
   </div>
 
   <script>
-    (function () {
-      const logContainer = document.getElementById('log');
-      const statusEl = document.getElementById('status');
-      const spinnerEl = document.getElementById('spinner');
-      const countdownEl = document.getElementById('countdown');
-      
-      let allLogs = [];
-      let autoCloseTimer = null;
-      
-      // 🔥 调试模式: true = 不自动关闭, false = 5秒后自动关闭
-      const DEBUG_MODE = true;
+    // ============================================
+    // 配置
+    // ============================================
+    const DEBUG = true; // 开发时显示UI，生产时设为 false
 
-      // 日志函数
-      function log(message, type = 'info') {
-        const time = new Date().toLocaleTimeString('zh-CN', { hour12: false, fractionalSecondDigits: 3 });
-        const logText = `[${time}] [${type.toUpperCase()}] ${message}`;
-        allLogs.push(logText);
-        
-        const logItem = document.createElement('div');
-        logItem.className = `log-item log-${type}`;
-        logItem.textContent = logText;
-        logContainer.appendChild(logItem);
-        logContainer.scrollTop = logContainer.scrollHeight;
-        
-        console.log(logText);
-      }
+    // ============================================
+    // 状态管理
+    // ============================================
+    const state = {
+      botId: null,
+      authPopup: null,
+      checkInterval: null,
+      logs: []
+    };
 
-      function updateStatus(text, hideSpinner = false) {
-        statusEl.textContent = text;
-        if (hideSpinner) {
-          spinnerEl.style.display = 'none';
+    // ============================================
+    // UI 控制
+    // ============================================
+    const UI = {
+      updateStatus(text, type = 'loading') {
+        const statusEl = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        
+        statusEl.className = 'status';
+        statusText.textContent = text;
+
+        if (type === 'success') {
+          statusEl.classList.add('success');
+          statusEl.innerHTML = `
+            <svg class="checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span>${text}</span>
+          `;
+        } else if (type === 'error') {
+          statusEl.classList.add('error');
+          statusEl.innerHTML = `
+            <svg class="error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            <span>${text}</span>
+          `;
+        } else {
+          statusEl.innerHTML = `
+            <div class="spinner"></div>
+            <span>${text}</span>
+          `;
         }
-      }
+      },
 
-      function copyLogs() {
-        const logsText = allLogs.join('\n');
-        navigator.clipboard.writeText(logsText).then(() => {
-          alert('✅ 日志已复制到剪贴板!');
-        }).catch(err => {
-          alert('❌ 复制失败: ' + err);
+      updateTitle(title, subtitle = '') {
+        document.getElementById('title').textContent = title;
+        document.getElementById('subtitle').textContent = subtitle;
+      },
+
+      addLog(message, type = 'info') {
+        const time = new Date().toLocaleTimeString('zh-CN', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
         });
-      }
 
-      function startCountdown(seconds) {
-        let remaining = seconds;
-        countdownEl.textContent = `${remaining} 秒后自动关闭...`;
+        state.logs.push({ time, message, type });
+
+        const logsEl = document.getElementById('logs');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `
+          <span class="log-time">[${time}]</span>
+          <span class="log-${type}">${message}</span>
+        `;
         
-        const interval = setInterval(() => {
-          remaining--;
-          if (remaining <= 0) {
-            clearInterval(interval);
-            window.close();
-          } else {
-            countdownEl.textContent = `${remaining} 秒后自动关闭...`;
-          }
-        }, 1000);
-      }
+        logsEl.appendChild(entry);
+        logsEl.scrollTop = logsEl.scrollHeight;
 
-      // 暴露到全局供按钮调用
-      window.copyLogs = copyLogs;
+        // 同时输出到控制台
+        console.log(`[${type.toUpperCase()}] ${message}`);
+      },
+
+      hideUI() {
+        document.body.classList.add('hidden-mode');
+      }
+    };
+
+    // ============================================
+    // 消息通信
+    // ============================================
+    function notifyParent(type, data = null, error = null) {
+      const message = {
+        type: type,
+        data: data,
+        error: error,
+        timestamp: Date.now()
+      };
+
+      UI.addLog(`发送消息给父窗口: ${type}`, 'info');
+
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(message, '*');
+        UI.addLog('✓ 消息已发送', 'success');
+      } else {
+        UI.addLog('⚠ 不在 iframe 中', 'warn');
+      }
+    }
+
+    // ============================================
+    // 授权处理
+    // ============================================
+    function parseAuthResult(hash) {
+      try {
+        UI.addLog('开始解析授权数据...', 'info');
+        
+        const encoded = hash.replace('#tgAuthResult=', '');
+        UI.addLog(`Base64 数据长度: ${encoded.length}`, 'info');
+        
+        // Base64URL → Base64
+        const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+        
+        // 解码
+        const decoded = atob(base64);
+        const json = decodeURIComponent(
+          decoded.split('').map(c => 
+            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+          ).join('')
+        );
+        
+        const authData = JSON.parse(json);
+        UI.addLog('✓ 数据解析成功', 'success');
+        UI.addLog(`用户: ${authData.first_name || ''} ${authData.last_name || ''}`, 'info');
+        
+        return authData;
+      } catch (e) {
+        UI.addLog(`✗ 解析失败: ${e.message}`, 'error');
+        throw e;
+      }
+    }
+
+    function handleAuthResult(hash) {
+      UI.updateStatus('正在处理授权数据...', 'loading');
+      UI.updateTitle('处理中', '正在验证您的身份...');
 
       try {
-        log('========================================', 'info');
-        log('🚀 Telegram 授权处理脚本启动', 'info');
-        log('========================================', 'info');
-        log(`🕐 启动时间: ${new Date().toISOString()}`, 'info');
-        log(`📍 完整 URL: ${window.location.href}`, 'info');
-        log(`🔗 Hash 部分: ${window.location.hash || '(空)'}`, 'info');
-        log(`❓ Search 部分: ${window.location.search || '(空)'}`, 'info');
-        log(`🪟 window.opener 存在: ${!!window.opener}`, 'info');
-        log(`🌐 当前域名: ${window.location.origin}`, 'info');
-        log(`🐛 调试模式: ${DEBUG_MODE ? '开启 (不自动关闭)' : '关闭 (5秒后关闭)'}`, 'info');
-        log('========================================', 'info');
-
-        let authData = {};
-
-        // 1️⃣ 尝试从 hash 中解析
-        if (window.location.hash.startsWith('#tgAuthResult=')) {
-          log('✨ 检测到 hash 中的授权数据', 'success');
-          
-          const encoded = window.location.hash.replace('#tgAuthResult=', '');
-          log(`📦 Base64URL 编码数据 (前50字符): ${encoded.substring(0, 50)}...`, 'info');
-          log(`📏 编码数据总长度: ${encoded.length}`, 'info');
-          
-          try {
-            const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-            log('🔄 已转换为标准 Base64 格式', 'info');
-            
-            const decoded = atob(base64);
-            log(`📝 Base64 解码后字节长度: ${decoded.length}`, 'info');
-            
-            const json = decodeURIComponent(
-              decoded
-                .split('')
-                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-            );
-            log(`📄 转换为 UTF-8 字符串成功`, 'info');
-            log(`📃 JSON 字符串: ${json}`, 'info');
-            
-            authData = JSON.parse(json);
-            log('✅ JSON 解析成功!', 'success');
-            log(`👤 解析后的数据:`, 'success');
-            log(JSON.stringify(authData, null, 2), 'success');
-            log(`🔑 包含的字段: ${Object.keys(authData).join(', ')}`, 'success');
-            
-          } catch (e) {
-            log(`❌ 解析 hash 数据时出错: ${e.message}`, 'error');
-            log(`❌ 错误堆栈: ${e.stack}`, 'error');
-          }
-        } else {
-          log('⚠️ URL hash 不是以 #tgAuthResult= 开头', 'error');
-        }
-
-        // 2️⃣ 兜底: query 参数
-        if (!Object.keys(authData).length && window.location.search) {
-          log('🔍 尝试从 query 参数获取数据...', 'info');
-          
-          const params = new URLSearchParams(window.location.search);
-          let paramCount = 0;
-          for (const [key, value] of params.entries()) {
-            authData[key] = value;
-            paramCount++;
-            log(`  📌 ${key}: ${value}`, 'info');
-          }
-          
-          if (paramCount > 0) {
-            log(`✅ 从 query 获取到 ${paramCount} 个参数`, 'success');
-          }
-        }
-
-        log('========================================', 'info');
+        const authData = parseAuthResult(hash);
         
-        // 3️⃣ 发送数据
-        const dataKeys = Object.keys(authData);
-        if (dataKeys.length === 0) {
-          log('❌ 未找到任何授权数据!', 'error');
-          updateStatus('❌ 授权数据为空', true);
-          
-        } else if (!window.opener) {
-          log('❌ window.opener 不存在,无法发送数据', 'error');
-          log('ℹ️ 这可能是因为: 1) 窗口不是通过 window.open 打开的, 2) 父窗口已关闭, 3) 跨域限制', 'info');
-          updateStatus('❌ 无法通信: 父窗口不可用', true);
-          
-        } else {
-          log('📤 准备发送数据给父窗口...', 'info');
-          log(`📊 数据包含 ${dataKeys.length} 个字段: ${dataKeys.join(', ')}`, 'info');
-          log(`🎯 发送的完整数据:`, 'info');
-          log(JSON.stringify(authData, null, 2), 'info');
-          
-          // 发送消息
-          window.opener.postMessage(authData, '*');
-          
-          log('✅ postMessage() 已调用完成', 'success');
-          log('🎯 目标源: * (任意源)', 'info');
-          log('ℹ️ 如果 Flutter 没收到,请检查:', 'info');
-          log('  1. Flutter 监听器是否正确设置', 'info');
-          log('  2. 监听器是否在 postMessage 之前就已设置', 'info');
-          log('  3. 是否有跨域或 CSP 策略阻止', 'info');
-          
-          updateStatus('✅ 数据已发送给父窗口!', true);
-          
-          if (!DEBUG_MODE) {
-            log('⏳ 5 秒后自动关闭窗口...', 'info');
-            startCountdown(5);
-          } else {
-            log('🐛 调试模式: 窗口不会自动关闭', 'info');
-            countdownEl.textContent = '🐛 调试模式: 不会自动关闭';
-          }
-        }
+        UI.updateStatus('授权成功！', 'success');
+        UI.updateTitle('登录成功', '即将返回应用...');
+        UI.addLog('正在返回应用...', 'success');
         
-        log('========================================', 'info');
+        notifyParent('telegram_auth_success', authData);
+        
+        setTimeout(() => {
+          UI.addLog('授权流程完成', 'success');
+        }, 500);
 
       } catch (e) {
-        log(`💥 致命错误: ${e.message}`, 'error');
-        log(`💥 错误堆栈: ${e.stack}`, 'error');
-        updateStatus('❌ 发生错误', true);
+        UI.updateStatus('授权失败', 'error');
+        UI.updateTitle('出错了', '授权数据处理失败');
+        UI.addLog(`处理失败: ${e.message}`, 'error');
+        notifyParent('telegram_auth_error', null, '数据处理失败');
       }
-    })();
+    }
+
+    function openTelegramAuth(botId) {
+      UI.updateStatus('正在打开 Telegram 授权...', 'loading');
+      UI.updateTitle('请授权', '在弹出的窗口中完成登录');
+      UI.addLog(`使用 Bot ID: ${botId}`, 'info');
+
+      const currentUrl = window.location.origin + window.location.pathname;
+      const authUrl = 'https://oauth.telegram.org/auth' +
+        `?bot_id=${botId}` +
+        `&origin=${encodeURIComponent(currentUrl)}` +
+        `&return_to=${encodeURIComponent(currentUrl)}` +
+        `&request_access=write`;
+
+      UI.addLog('授权 URL 已生成', 'info');
+
+      // 计算居中位置
+      const width = 550;
+      const height = 470;
+      const left = Math.round((screen.width - width) / 2);
+      const top = Math.round((screen.height - height) / 2);
+      const features = `width=${width},height=${height},left=${left},top=${top}`;
+
+      // 打开弹窗
+      state.authPopup = window.open(authUrl, 'telegram_auth', features);
+
+      if (!state.authPopup) {
+        UI.updateStatus('弹窗被阻止', 'error');
+        UI.updateTitle('出错了', '请允许浏览器弹窗');
+        UI.addLog('✗ 弹窗被浏览器阻止', 'error');
+        notifyParent('telegram_auth_error', null, '弹窗被阻止');
+        return;
+      }
+
+      UI.addLog('✓ 授权窗口已打开', 'success');
+      UI.addLog('等待用户授权...', 'info');
+
+      // 监听弹窗关闭
+      state.checkInterval = setInterval(() => {
+        if (state.authPopup && state.authPopup.closed) {
+          clearInterval(state.checkInterval);
+          UI.addLog('授权窗口已关闭', 'warn');
+
+          // 检查是否有授权数据
+          if (!window.location.hash.startsWith('#tgAuthResult=')) {
+            UI.updateStatus('授权已取消', 'error');
+            UI.updateTitle('已取消', '您取消了登录');
+            UI.addLog('用户可能取消了授权', 'warn');
+            notifyParent('telegram_auth_cancel');
+          }
+        }
+      }, 500);
+    }
+
+    // ============================================
+    // 初始化
+    // ============================================
+    function init() {
+      UI.addLog('🚀 Bridge 页面启动', 'info');
+      UI.addLog(`当前 URL: ${window.location.href}`, 'info');
+
+      // 检查是否在 iframe 中
+      const isInIframe = window.parent !== window;
+      UI.addLog(`运行环境: ${isInIframe ? 'iframe' : '独立页面'}`, 'info');
+
+      // 如果不在开发模式且在 iframe 中，隐藏 UI
+      if (!DEBUG && isInIframe) {
+        UI.hideUI();
+      }
+
+      // 通知父窗口已就绪
+      if (isInIframe) {
+        notifyParent('telegram_auth_ready');
+      }
+
+      // 从 URL 获取 bot_id
+      const params = new URLSearchParams(window.location.search);
+      state.botId = params.get('bot_id');
+
+      if (!state.botId) {
+        UI.updateStatus('配置错误', 'error');
+        UI.updateTitle('出错了', '缺少必要参数');
+        UI.addLog('✗ 缺少 bot_id 参数', 'error');
+        notifyParent('telegram_auth_error', null, '缺少 bot_id');
+        return;
+      }
+
+      UI.addLog(`✓ Bot ID: ${state.botId}`, 'success');
+
+      // 检查是否是授权返回
+      const hash = window.location.hash;
+
+      if (hash.startsWith('#tgAuthResult=')) {
+        UI.addLog('检测到授权返回数据', 'success');
+        handleAuthResult(hash);
+      } else {
+        UI.addLog('首次加载，准备打开授权窗口', 'info');
+        // 延迟一下，让 UI 显示出来
+        setTimeout(() => openTelegramAuth(state.botId), 500);
+      }
+    }
+
+    // 页面加载完成后初始化
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+
+    // 清理
+    window.addEventListener('beforeunload', () => {
+      if (state.checkInterval) {
+        clearInterval(state.checkInterval);
+      }
+      if (state.authPopup && !state.authPopup.closed) {
+        state.authPopup.close();
+      }
+    });
   </script>
 </body>
 </html>
