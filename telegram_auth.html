@@ -10,10 +10,11 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      padding: 20px;
     }
     .container {
       text-align: center;
@@ -21,6 +22,8 @@
       background: rgba(255, 255, 255, 0.1);
       border-radius: 12px;
       backdrop-filter: blur(10px);
+      max-width: 600px;
+      width: 100%;
     }
     .spinner {
       border: 4px solid rgba(255, 255, 255, 0.3);
@@ -42,7 +45,7 @@
       border-radius: 8px;
       text-align: left;
       font-size: 12px;
-      max-height: 300px;
+      max-height: 400px;
       overflow-y: auto;
       font-family: monospace;
     }
@@ -50,6 +53,7 @@
       margin: 4px 0;
       padding: 4px;
       border-left: 3px solid #4ade80;
+      word-break: break-all;
     }
     .log-error {
       border-left-color: #f87171;
@@ -60,125 +64,233 @@
     .log-info {
       border-left-color: #60a5fa;
     }
+    .buttons {
+      margin-top: 1rem;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-close {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-close:hover {
+      background: #dc2626;
+    }
+    .btn-copy {
+      background: #3b82f6;
+      color: white;
+    }
+    .btn-copy:hover {
+      background: #2563eb;
+    }
+    .countdown {
+      font-size: 14px;
+      margin-top: 10px;
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="spinner"></div>
-    <h2>正在处理 Telegram 授权...</h2>
-    <p id="status">请稍候</p>
+    <div class="spinner" id="spinner"></div>
+    <h2>Telegram 授权处理</h2>
+    <p id="status">正在处理授权数据...</p>
+    <div class="countdown" id="countdown"></div>
     <div class="log" id="log"></div>
+    <div class="buttons">
+      <button class="btn-copy" onclick="copyLogs()">📋 复制日志</button>
+      <button class="btn-close" onclick="window.close()">❌ 手动关闭</button>
+    </div>
   </div>
 
   <script>
     (function () {
       const logContainer = document.getElementById('log');
       const statusEl = document.getElementById('status');
+      const spinnerEl = document.getElementById('spinner');
+      const countdownEl = document.getElementById('countdown');
       
+      let allLogs = [];
+      let autoCloseTimer = null;
+      
+      // 🔥 调试模式: true = 不自动关闭, false = 5秒后自动关闭
+      const DEBUG_MODE = true;
+
       // 日志函数
       function log(message, type = 'info') {
-        const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        const time = new Date().toLocaleTimeString('zh-CN', { hour12: false, fractionalSecondDigits: 3 });
+        const logText = `[${time}] [${type.toUpperCase()}] ${message}`;
+        allLogs.push(logText);
+        
         const logItem = document.createElement('div');
         logItem.className = `log-item log-${type}`;
-        logItem.textContent = `[${time}] ${message}`;
+        logItem.textContent = logText;
         logContainer.appendChild(logItem);
         logContainer.scrollTop = logContainer.scrollHeight;
         
-        // 同时输出到控制台
-        console.log(`[${type.toUpperCase()}] ${message}`);
+        console.log(logText);
       }
 
-      function updateStatus(text) {
+      function updateStatus(text, hideSpinner = false) {
         statusEl.textContent = text;
+        if (hideSpinner) {
+          spinnerEl.style.display = 'none';
+        }
       }
+
+      function copyLogs() {
+        const logsText = allLogs.join('\n');
+        navigator.clipboard.writeText(logsText).then(() => {
+          alert('✅ 日志已复制到剪贴板!');
+        }).catch(err => {
+          alert('❌ 复制失败: ' + err);
+        });
+      }
+
+      function startCountdown(seconds) {
+        let remaining = seconds;
+        countdownEl.textContent = `${remaining} 秒后自动关闭...`;
+        
+        const interval = setInterval(() => {
+          remaining--;
+          if (remaining <= 0) {
+            clearInterval(interval);
+            window.close();
+          } else {
+            countdownEl.textContent = `${remaining} 秒后自动关闭...`;
+          }
+        }, 1000);
+      }
+
+      // 暴露到全局供按钮调用
+      window.copyLogs = copyLogs;
 
       try {
-        log('🚀 授权处理脚本启动', 'info');
-        log(`📍 当前 URL: ${window.location.href}`, 'info');
-        log(`🔗 Hash: ${window.location.hash}`, 'info');
-        log(`❓ Search: ${window.location.search}`, 'info');
-        log(`🪟 是否有 opener: ${!!window.opener}`, 'info');
+        log('========================================', 'info');
+        log('🚀 Telegram 授权处理脚本启动', 'info');
+        log('========================================', 'info');
+        log(`🕐 启动时间: ${new Date().toISOString()}`, 'info');
+        log(`📍 完整 URL: ${window.location.href}`, 'info');
+        log(`🔗 Hash 部分: ${window.location.hash || '(空)'}`, 'info');
+        log(`❓ Search 部分: ${window.location.search || '(空)'}`, 'info');
+        log(`🪟 window.opener 存在: ${!!window.opener}`, 'info');
+        log(`🌐 当前域名: ${window.location.origin}`, 'info');
+        log(`🐛 调试模式: ${DEBUG_MODE ? '开启 (不自动关闭)' : '关闭 (5秒后关闭)'}`, 'info');
+        log('========================================', 'info');
 
         let authData = {};
 
-        // 1️⃣ 尝试从 hash 中解析 (Telegram 新版)
+        // 1️⃣ 尝试从 hash 中解析
         if (window.location.hash.startsWith('#tgAuthResult=')) {
-          log('📦 检测到 hash 中的授权数据', 'info');
+          log('✨ 检测到 hash 中的授权数据', 'success');
           
           const encoded = window.location.hash.replace('#tgAuthResult=', '');
-          log(`🔐 编码数据长度: ${encoded.length}`, 'info');
+          log(`📦 Base64URL 编码数据 (前50字符): ${encoded.substring(0, 50)}...`, 'info');
+          log(`📏 编码数据总长度: ${encoded.length}`, 'info');
           
           try {
-            // Base64URL → Base64
             const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-            log('🔄 已转换为标准 Base64', 'info');
+            log('🔄 已转换为标准 Base64 格式', 'info');
             
-            // 解码
             const decoded = atob(base64);
-            log(`📝 解码后长度: ${decoded.length}`, 'info');
+            log(`📝 Base64 解码后字节长度: ${decoded.length}`, 'info');
             
-            // 转换为 UTF-8
             const json = decodeURIComponent(
               decoded
                 .split('')
                 .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
                 .join('')
             );
+            log(`📄 转换为 UTF-8 字符串成功`, 'info');
+            log(`📃 JSON 字符串: ${json}`, 'info');
             
             authData = JSON.parse(json);
-            log(`✅ 成功解析 JSON 数据`, 'success');
-            log(`👤 用户信息: ${JSON.stringify(authData, null, 2)}`, 'success');
+            log('✅ JSON 解析成功!', 'success');
+            log(`👤 解析后的数据:`, 'success');
+            log(JSON.stringify(authData, null, 2), 'success');
+            log(`🔑 包含的字段: ${Object.keys(authData).join(', ')}`, 'success');
+            
           } catch (e) {
-            log(`❌ 解析 hash 数据失败: ${e.message}`, 'error');
-            console.error('Hash 解析错误:', e);
+            log(`❌ 解析 hash 数据时出错: ${e.message}`, 'error');
+            log(`❌ 错误堆栈: ${e.stack}`, 'error');
           }
+        } else {
+          log('⚠️ URL hash 不是以 #tgAuthResult= 开头', 'error');
         }
 
-        // 2️⃣ 兜底:尝试从 query 参数解析 (老版本)
+        // 2️⃣ 兜底: query 参数
         if (!Object.keys(authData).length && window.location.search) {
-          log('📦 尝试从 query 参数获取数据', 'info');
+          log('🔍 尝试从 query 参数获取数据...', 'info');
           
           const params = new URLSearchParams(window.location.search);
+          let paramCount = 0;
           for (const [key, value] of params.entries()) {
             authData[key] = value;
+            paramCount++;
+            log(`  📌 ${key}: ${value}`, 'info');
           }
           
-          if (Object.keys(authData).length > 0) {
-            log(`✅ 从 query 获取到 ${Object.keys(authData).length} 个字段`, 'success');
-            log(`👤 用户信息: ${JSON.stringify(authData, null, 2)}`, 'success');
+          if (paramCount > 0) {
+            log(`✅ 从 query 获取到 ${paramCount} 个参数`, 'success');
           }
         }
 
-        // 3️⃣ 发送数据给 Flutter Web
-        if (Object.keys(authData).length === 0) {
-          log('⚠️ 未找到授权数据', 'error');
-          updateStatus('授权数据为空');
+        log('========================================', 'info');
+        
+        // 3️⃣ 发送数据
+        const dataKeys = Object.keys(authData);
+        if (dataKeys.length === 0) {
+          log('❌ 未找到任何授权数据!', 'error');
+          updateStatus('❌ 授权数据为空', true);
+          
         } else if (!window.opener) {
-          log('⚠️ 没有 opener 窗口,无法发送数据', 'error');
-          updateStatus('无法通信:窗口已关闭');
+          log('❌ window.opener 不存在,无法发送数据', 'error');
+          log('ℹ️ 这可能是因为: 1) 窗口不是通过 window.open 打开的, 2) 父窗口已关闭, 3) 跨域限制', 'info');
+          updateStatus('❌ 无法通信: 父窗口不可用', true);
+          
         } else {
           log('📤 准备发送数据给父窗口...', 'info');
-          log(`📊 数据字段: ${Object.keys(authData).join(', ')}`, 'info');
+          log(`📊 数据包含 ${dataKeys.length} 个字段: ${dataKeys.join(', ')}`, 'info');
+          log(`🎯 发送的完整数据:`, 'info');
+          log(JSON.stringify(authData, null, 2), 'info');
           
-          // 🔥 直接发送解析后的对象,不包装在 tgAuthResult 中
+          // 发送消息
           window.opener.postMessage(authData, '*');
           
-          log('✅ postMessage 已调用', 'success');
-          log(`🎯 目标: * (任意源)`, 'info');
-          updateStatus('授权成功!窗口即将关闭...');
+          log('✅ postMessage() 已调用完成', 'success');
+          log('🎯 目标源: * (任意源)', 'info');
+          log('ℹ️ 如果 Flutter 没收到,请检查:', 'info');
+          log('  1. Flutter 监听器是否正确设置', 'info');
+          log('  2. 监听器是否在 postMessage 之前就已设置', 'info');
+          log('  3. 是否有跨域或 CSP 策略阻止', 'info');
           
-          // 延迟关闭,让用户看到成功消息
-          setTimeout(() => {
-            log('🚪 准备关闭窗口', 'info');
-            window.close();
-          }, 1500);
+          updateStatus('✅ 数据已发送给父窗口!', true);
+          
+          if (!DEBUG_MODE) {
+            log('⏳ 5 秒后自动关闭窗口...', 'info');
+            startCountdown(5);
+          } else {
+            log('🐛 调试模式: 窗口不会自动关闭', 'info');
+            countdownEl.textContent = '🐛 调试模式: 不会自动关闭';
+          }
         }
+        
+        log('========================================', 'info');
 
       } catch (e) {
         log(`💥 致命错误: ${e.message}`, 'error');
-        console.error('Telegram redirect error:', e);
-        console.error('Stack trace:', e.stack);
-        updateStatus('授权失败,请重试');
+        log(`💥 错误堆栈: ${e.stack}`, 'error');
+        updateStatus('❌ 发生错误', true);
       }
     })();
   </script>
