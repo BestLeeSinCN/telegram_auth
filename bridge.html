@@ -88,26 +88,36 @@
 }
 
   function handleAuthResult(hash) {
-    try {
-      const encoded = hash.replace('#tgAuthResult=', '');
-      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-      const decoded = atob(base64);
-      const json = decodeURIComponent(
-        decoded.split('').map(c =>
-          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-        ).join('')
-      );
-      const data = JSON.parse(json);
+  try {
+    const encoded = hash.replace('#tgAuthResult=', '');
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = atob(base64);
+    const json = decodeURIComponent(
+      decoded.split('').map(c =>
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join('')
+    );
+    const data = JSON.parse(json);
 
-      console.log('✅ 授权成功:', data);
-      notifyFlutter('telegram_auth_success', data);
+    console.log('✅ 授权成功:', data);
 
-      setTimeout(() => window.close(), 800);
-    } catch (e) {
-      console.error('❌ 解析失败', e);
-      notifyFlutter('telegram_auth_error', null, '授权数据解析失败');
+    notifyFlutter('telegram_auth_success', data);
+
+    // 🔥 关键修复：只在 popup 场景关闭
+    if (window.opener && window.opener !== window) {
+      setTimeout(() => {
+        console.log('🚪 关闭授权弹窗');
+        window.close();
+      }, 800);
+    } else {
+      console.log('ℹ️ 非弹窗环境，保留页面');
     }
+
+  } catch (e) {
+    console.error('❌ 解析失败', e);
+    notifyFlutter('telegram_auth_error', null, '授权数据解析失败');
   }
+}
 
   function notifyFlutter(type, data = null, error = null) {
     const message = { type, data, error };
