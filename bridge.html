@@ -1,248 +1,124 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Telegram 授权处理</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+  <meta charset="UTF-8" />
+  <title>Telegram 授权</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: linear-gradient(135deg, #667eea, #764ba2);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
     }
 
-    .container {
+    .card {
       background: white;
-      border-radius: 20px;
-      padding: 40px;
-      max-width: 480px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 32px;
+      border-radius: 16px;
       text-align: center;
-    }
-
-    .logo {
-      width: 80px;
-      height: 80px;
-      margin: 0 auto 24px;
-      background: linear-gradient(135deg, #54a0ff, #667eea);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 40px;
-    }
-
-    h1 {
-      font-size: 24px;
-      color: #2d3748;
-      margin-bottom: 12px;
-    }
-
-    .subtitle {
-      color: #718096;
-      font-size: 15px;
-      margin-bottom: 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.3);
     }
 
     .spinner {
       width: 40px;
       height: 40px;
-      border: 4px solid #e2e8f0;
+      border: 4px solid #e5e7eb;
       border-top-color: #667eea;
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 20px auto;
+      margin: 24px auto;
+      animation: spin .8s linear infinite;
     }
 
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-
-    .checkmark {
-      width: 60px;
-      height: 60px;
-      margin: 20px auto;
-      color: #48bb78;
-    }
-
-    .error-icon {
-      width: 60px;
-      height: 60px;
-      margin: 20px auto;
-      color: #f56565;
-    }
-
-    /* 🔥 新增：iframe 中隐藏 UI */
-    body.iframe-mode .container {
-      display: none;
-    }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <div class="logo">✈️</div>
-    <h1 id="title">处理授权中...</h1>
-    <p class="subtitle" id="subtitle">请稍候</p>
-    <div id="icon"></div>
+  <div class="card">
+    <h2 id="title">准备授权</h2>
+    <p id="subtitle">正在跳转到 Telegram…</p>
+    <div id="icon" class="spinner"></div>
   </div>
 
-  <script>
-    console.log('🚀 Bridge 页面加载');
-    console.log('📍 URL:', window.location.href);
-    console.log('🔗 Hash:', window.location.hash);
+<script>
+  console.log('🚀 Bridge 页面加载');
+  console.log('URL:', location.href);
 
-    // 🔥 修复：优先判断 opener（弹窗），再判断 parent（iframe）
-    const isInPopup = !!(window.opener && window.opener !== window);
-    const isInIframe = !isInPopup && (window.parent !== window);
-    
-    console.log('🔍 运行环境:');
-    console.log('   isInPopup:', isInPopup);
-    console.log('   isInIframe:', isInIframe);
-    console.log('   window.opener:', !!window.opener);
-    console.log('   window.parent:', window.parent !== window);
+  const params = new URLSearchParams(location.search);
+  const botId = params.get('bot_id');
+  const origin = params.get('origin');
+  const requestAccess = params.get('request_access') || 'write';
 
-    // 检查是否有授权数据
-    const hash = window.location.hash;
-    const hasAuthData = hash.startsWith('#tgAuthResult=');
+  const hash = location.hash;
+  const hasAuthResult = hash.startsWith('#tgAuthResult=');
 
-    console.log('📋 hasAuthData:', hasAuthData);
+  if (hasAuthResult) {
+    handleAuthResult(hash);
+  } else {
+    openTelegramAuth();
+  }
 
-    // 🔥 修复后的处理逻辑
-    if (hasAuthData) {
-      // 情况1: 有授权数据（从 Telegram 重定向回来）
-      console.log('✅ 检测到授权数据 - 处理授权结果');
-      handleAuthResult(hash);
-      
-    } else if (isInPopup) {
-      // 情况2: 在弹窗中但没有授权数据（首次打开弹窗）
-      console.log('🪟 在弹窗中 - 等待跳转到 Telegram');
-      showWaiting();
-      
-    } else if (isInIframe) {
-      // 情况3: 在 iframe 中（准备就绪）
-      console.log('📦 在 iframe 中 - 通知父窗口已就绪');
-      document.body.classList.add('iframe-mode'); // 隐藏 UI
-      notifyParent('telegram_auth_ready');
-      
-    } else {
-      // 情况4: 直接访问（不应该发生）
-      console.log('⚠️ 直接访问 - 显示提示');
-      showDirectAccess();
+  function openTelegramAuth() {
+    if (!botId || !origin) {
+      notifyParent('telegram_auth_error', null, '缺少参数');
+      return;
     }
 
-    function handleAuthResult(hash) {
-      try {
-        document.getElementById('title').textContent = '正在验证...';
-        document.getElementById('icon').innerHTML = '<div class="spinner"></div>';
+    const returnTo = location.origin + location.pathname;
 
-        const encoded = hash.replace('#tgAuthResult=', '');
-        console.log('📦 Base64 长度:', encoded.length);
+    const authUrl =
+      'https://oauth.telegram.org/auth'
+      + '?bot_id=' + botId
+      + '&origin=' + encodeURIComponent(origin)
+      + '&return_to=' + encodeURIComponent(returnTo)
+      + '&request_access=' + requestAccess;
 
-        // Base64URL → Base64
-        const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-        
-        // 解码
-        const decoded = atob(base64);
-        const json = decodeURIComponent(
-          decoded.split('').map(c => 
-            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-          ).join('')
-        );
-        
-        const authData = JSON.parse(json);
-        console.log('✅ 解析成功:', authData);
+    console.log('🔐 跳转 Telegram OAuth:', authUrl);
+    location.replace(authUrl);
+  }
 
-        // 🔥 发送给打开这个弹窗的窗口
-        notifyParent('telegram_auth_success', authData);
+  function handleAuthResult(hash) {
+    try {
+      const encoded = hash.replace('#tgAuthResult=', '');
+      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const decoded = atob(base64);
+      const json = decodeURIComponent(
+        decoded.split('').map(c =>
+          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join('')
+      );
 
-        // 显示成功
-        document.getElementById('title').textContent = '授权成功！';
-        document.getElementById('subtitle').textContent = '即将关闭...';
-        document.getElementById('icon').innerHTML = `
-          <svg class="checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-          </svg>
-        `;
+      const data = JSON.parse(json);
+      console.log('✅ 授权数据:', data);
 
-        // 自动关闭弹窗
-        setTimeout(() => {
-          console.log('🚪 关闭弹窗');
-          window.close();
-        }, 1500);
+      notifyParent('telegram_auth_success', data);
 
-      } catch (e) {
-        console.error('❌ 处理失败:', e);
-        
-        document.getElementById('title').textContent = '处理失败';
-        document.getElementById('subtitle').textContent = e.message;
-        document.getElementById('icon').innerHTML = `
-          <svg class="error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        `;
+      document.getElementById('title').textContent = '授权成功';
+      document.getElementById('subtitle').textContent = '窗口即将关闭';
 
-        notifyParent('telegram_auth_error', null, '数据处理失败');
-      }
+      setTimeout(() => window.close(), 800);
+    } catch (e) {
+      console.error('❌ 解析失败', e);
+      notifyParent('telegram_auth_error', null, '授权数据解析失败');
     }
+  }
 
-    function showWaiting() {
-      document.getElementById('title').textContent = '准备跳转';
-      document.getElementById('subtitle').textContent = '即将打开 Telegram 授权页面...';
-      document.getElementById('icon').innerHTML = '<div class="spinner"></div>';
+  function notifyParent(type, data = null, error = null) {
+    const message = { type, data, error };
+
+    if (window.opener && window.opener !== window) {
+      window.opener.postMessage(message, origin || '*');
     }
-
-    function showDirectAccess() {
-      document.getElementById('title').textContent = '请勿直接访问';
-      document.getElementById('subtitle').textContent = '此页面仅供 Telegram 授权使用';
-      document.getElementById('icon').innerHTML = '';
-    }
-
-    function notifyParent(type, data = null, error = null) {
-      const message = {
-        type: type,
-        data: data,
-        error: error,
-        timestamp: Date.now()
-      };
-
-      console.log('📤 准备发送消息:', message);
-      console.log('📤 发送目标: opener=' + !!window.opener + ', parent=' + (window.parent !== window));
-
-      // 🔥 优先发送给 opener（如果在弹窗中）
-      if (window.opener && window.opener !== window) {
-        try {
-          window.opener.postMessage(message, '*');
-          console.log('✅ 消息已发送 (via opener)');
-          return;
-        } catch (e) {
-          console.warn('⚠️ 发送给 opener 失败:', e);
-        }
-      }
-
-      // 🔥 其次发送给 parent（如果在 iframe 中）
-      if (window.parent && window.parent !== window) {
-        try {
-          window.parent.postMessage(message, '*');
-          console.log('✅ 消息已发送 (via parent)');
-          return;
-        } catch (e) {
-          console.warn('⚠️ 发送给 parent 失败:', e);
-        }
-      }
-
-      console.error('❌ 无法找到目标窗口');
-    }
-  </script>
+  }
+</script>
 </body>
 </html>
