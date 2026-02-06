@@ -64,25 +64,28 @@
   }
 
   function openTelegramAuth() {
-    if (!botId) {
-      notifyFlutter('telegram_auth_error', null, '缺少 bot_id');
-      return;
-    }
+  const telegramOrigin = location.origin;
+  const returnTo = location.origin + location.pathname;
 
-    // 🔥 关键修复：Telegram OAuth 必须使用 bridge 自己的 origin
-    const telegramOrigin = location.origin;
-    const returnTo = location.origin + location.pathname;
+  const authUrl =
+    'https://oauth.telegram.org/auth'
+    + '?bot_id=' + botId
+    + '&origin=' + encodeURIComponent(telegramOrigin)
+    + '&return_to=' + encodeURIComponent(returnTo)
+    + '&request_access=' + requestAccess;
 
-    const authUrl =
-      'https://oauth.telegram.org/auth'
-      + '?bot_id=' + botId
-      + '&origin=' + encodeURIComponent(telegramOrigin)
-      + '&return_to=' + encodeURIComponent(returnTo)
-      + '&request_access=' + requestAccess;
+  console.log('🔐 Telegram OAuth URL:', authUrl);
 
-    console.log('🔐 Telegram OAuth URL:', authUrl);
-    location.replace(authUrl);
-  }
+  // 🔥 关键：通过 noopener 切断 window.opener
+  const link = document.createElement('a');
+  link.href = authUrl;
+  link.rel = 'noopener noreferrer';
+  link.target = '_self';
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 
   function handleAuthResult(hash) {
     try {
