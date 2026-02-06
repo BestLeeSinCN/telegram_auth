@@ -4,28 +4,25 @@
   <meta charset="UTF-8" />
   <title>Telegram 授权</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <style>
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      font-family: system-ui, -apple-system;
       background: linear-gradient(135deg, #667eea, #764ba2);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-
     .card {
-      background: white;
+      background: #fff;
       padding: 32px;
       border-radius: 16px;
-      text-align: center;
       width: 100%;
       max-width: 420px;
+      text-align: center;
       box-shadow: 0 20px 50px rgba(0,0,0,.3);
     }
-
     .spinner {
       width: 40px;
       height: 40px;
@@ -35,7 +32,6 @@
       margin: 24px auto;
       animation: spin .8s linear infinite;
     }
-
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
@@ -43,19 +39,19 @@
 </head>
 
 <body>
-  <div class="card">
-    <h2 id="title">准备授权</h2>
-    <p id="subtitle">正在跳转到 Telegram…</p>
-    <div id="icon" class="spinner"></div>
-  </div>
+<div class="card">
+  <h2 id="title">准备授权</h2>
+  <p id="subtitle">正在跳转到 Telegram…</p>
+  <div class="spinner"></div>
+</div>
 
 <script>
-  console.log('🚀 Bridge 页面加载');
-  console.log('URL:', location.href);
+  console.log('🚀 Bridge 加载:', location.href);
 
   const params = new URLSearchParams(location.search);
+
   const botId = params.get('bot_id');
-  const origin = params.get('origin');
+  const flutterOrigin = params.get('flutter_origin');
   const requestAccess = params.get('request_access') || 'write';
 
   const hash = location.hash;
@@ -68,21 +64,23 @@
   }
 
   function openTelegramAuth() {
-    if (!botId || !origin) {
-      notifyParent('telegram_auth_error', null, '缺少参数');
+    if (!botId) {
+      notifyFlutter('telegram_auth_error', null, '缺少 bot_id');
       return;
     }
 
+    // 🔥 关键修复：Telegram OAuth 必须使用 bridge 自己的 origin
+    const telegramOrigin = location.origin;
     const returnTo = location.origin + location.pathname;
 
     const authUrl =
       'https://oauth.telegram.org/auth'
       + '?bot_id=' + botId
-      + '&origin=' + encodeURIComponent(origin)
+      + '&origin=' + encodeURIComponent(telegramOrigin)
       + '&return_to=' + encodeURIComponent(returnTo)
       + '&request_access=' + requestAccess;
 
-    console.log('🔐 跳转 Telegram OAuth:', authUrl);
+    console.log('🔐 Telegram OAuth URL:', authUrl);
     location.replace(authUrl);
   }
 
@@ -96,27 +94,23 @@
           '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
         ).join('')
       );
-
       const data = JSON.parse(json);
-      console.log('✅ 授权数据:', data);
 
-      notifyParent('telegram_auth_success', data);
-
-      document.getElementById('title').textContent = '授权成功';
-      document.getElementById('subtitle').textContent = '窗口即将关闭';
+      console.log('✅ 授权成功:', data);
+      notifyFlutter('telegram_auth_success', data);
 
       setTimeout(() => window.close(), 800);
     } catch (e) {
       console.error('❌ 解析失败', e);
-      notifyParent('telegram_auth_error', null, '授权数据解析失败');
+      notifyFlutter('telegram_auth_error', null, '授权数据解析失败');
     }
   }
 
-  function notifyParent(type, data = null, error = null) {
+  function notifyFlutter(type, data = null, error = null) {
     const message = { type, data, error };
 
-    if (window.opener && window.opener !== window) {
-      window.opener.postMessage(message, origin || '*');
+    if (window.opener && flutterOrigin) {
+      window.opener.postMessage(message, flutterOrigin);
     }
   }
 </script>
