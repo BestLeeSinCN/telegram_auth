@@ -82,6 +82,11 @@
       margin: 20px auto;
       color: #f56565;
     }
+
+    /* 🔥 新增：iframe 中隐藏 UI */
+    body.iframe-mode .container {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -97,14 +102,37 @@
     console.log('📍 URL:', window.location.href);
     console.log('🔗 Hash:', window.location.hash);
 
-    // 检查是否是授权返回
-    const hash = window.location.hash;
+    // 🔥 关键：判断当前页面是在 iframe 中还是弹窗中
+    const isInIframe = (window.parent !== window && window.self !== window.top);
+    const isInPopup = (window.opener && window.opener !== window);
+    
+    console.log('🔍 运行环境:');
+    console.log('   isInIframe:', isInIframe);
+    console.log('   isInPopup:', isInPopup);
+    console.log('   window.opener:', !!window.opener);
+    console.log('   window.parent:', !!window.parent);
 
-    if (hash.startsWith('#tgAuthResult=')) {
-      console.log('✅ 检测到授权数据');
+    // 检查是否有授权数据
+    const hash = window.location.hash;
+    const hasAuthData = hash.startsWith('#tgAuthResult=');
+
+    console.log('📋 hasAuthData:', hasAuthData);
+
+    // 🔥 处理逻辑
+    if (hasAuthData) {
+      // 情况1: 有授权数据（从 Telegram 重定向回来）
+      console.log('✅ 检测到授权数据 - 处理授权结果');
       handleAuthResult(hash);
+      
+    } else if (isInIframe) {
+      // 情况2: 在 iframe 中且没有授权数据（首次加载）
+      console.log('📦 在 iframe 中 - 通知父窗口已就绪');
+      document.body.classList.add('iframe-mode'); // 隐藏 UI
+      notifyParent('telegram_auth_ready');
+      
     } else {
-      console.log('ℹ️ 等待授权...');
+      // 情况3: 在弹窗中但没有授权数据（等待授权）
+      console.log('⏳ 在弹窗中 - 等待授权');
       showWaiting();
     }
 
@@ -130,22 +158,23 @@
         const authData = JSON.parse(json);
         console.log('✅ 解析成功:', authData);
 
-        // 发送给父窗口
+        // 🔥 发送给打开这个弹窗的窗口
         notifyParent('telegram_auth_success', authData);
 
         // 显示成功
         document.getElementById('title').textContent = '授权成功！';
-        document.getElementById('subtitle').textContent = '即将返回应用...';
+        document.getElementById('subtitle').textContent = '即将关闭...';
         document.getElementById('icon').innerHTML = `
           <svg class="checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
           </svg>
         `;
 
-        // 自动关闭
+        // 自动关闭弹窗
         setTimeout(() => {
+          console.log('🚪 关闭弹窗');
           window.close();
-        }, 2000);
+        }, 1500);
 
       } catch (e) {
         console.error('❌ 处理失败:', e);
@@ -164,7 +193,7 @@
 
     function showWaiting() {
       document.getElementById('title').textContent = '等待授权';
-      document.getElementById('subtitle').textContent = '请在弹出的窗口中完成登录';
+      document.getElementById('subtitle').textContent = '请在此窗口中完成 Telegram 登录';
       document.getElementById('icon').innerHTML = '<div class="spinner"></div>';
     }
 
@@ -176,22 +205,31 @@
         timestamp: Date.now()
       };
 
-      console.log('📤 发送消息:', message);
+      console.log('📤 准备发送消息:', message);
 
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage(message, '*');
-        console.log('✅ 消息已发送');
-      } else if (window.opener && window.opener !== window) {
-        window.opener.postMessage(message, '*');
-        console.log('✅ 消息已发送 (via opener)');
-      } else {
-        console.warn('⚠️ 无法找到父窗口');
+      // 🔥 优先发送给 opener（如果在弹窗中）
+      if (window.opener && window.opener !== window) {
+        try {
+          window.opener.postMessage(message, '*');
+          console.log('✅ 消息已发送 (via opener)');
+          return;
+        } catch (e) {
+          console.warn('⚠️ 发送给 opener 失败:', e);
+        }
       }
-    }
 
-    // 通知父窗口已就绪
-    if (window.parent !== window) {
-      notifyParent('telegram_auth_ready');
+      // 🔥 其次发送给 parent（如果在 iframe 中）
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage(message, '*');
+          console.log('✅ 消息已发送 (via parent)');
+          return;
+        } catch (e) {
+          console.warn('⚠️ 发送给 parent 失败:', e);
+        }
+      }
+
+      console.error('❌ 无法找到目标窗口');
     }
   </script>
 </body>
