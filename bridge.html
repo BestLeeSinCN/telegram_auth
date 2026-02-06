@@ -102,15 +102,15 @@
     console.log('📍 URL:', window.location.href);
     console.log('🔗 Hash:', window.location.hash);
 
-    // 🔥 关键：判断当前页面是在 iframe 中还是弹窗中
-    const isInIframe = (window.parent !== window && window.self !== window.top);
-    const isInPopup = (window.opener && window.opener !== window);
+    // 🔥 修复：优先判断 opener（弹窗），再判断 parent（iframe）
+    const isInPopup = !!(window.opener && window.opener !== window);
+    const isInIframe = !isInPopup && (window.parent !== window);
     
     console.log('🔍 运行环境:');
-    console.log('   isInIframe:', isInIframe);
     console.log('   isInPopup:', isInPopup);
+    console.log('   isInIframe:', isInIframe);
     console.log('   window.opener:', !!window.opener);
-    console.log('   window.parent:', !!window.parent);
+    console.log('   window.parent:', window.parent !== window);
 
     // 检查是否有授权数据
     const hash = window.location.hash;
@@ -118,22 +118,27 @@
 
     console.log('📋 hasAuthData:', hasAuthData);
 
-    // 🔥 处理逻辑
+    // 🔥 修复后的处理逻辑
     if (hasAuthData) {
       // 情况1: 有授权数据（从 Telegram 重定向回来）
       console.log('✅ 检测到授权数据 - 处理授权结果');
       handleAuthResult(hash);
       
+    } else if (isInPopup) {
+      // 情况2: 在弹窗中但没有授权数据（首次打开弹窗）
+      console.log('🪟 在弹窗中 - 等待跳转到 Telegram');
+      showWaiting();
+      
     } else if (isInIframe) {
-      // 情况2: 在 iframe 中且没有授权数据（首次加载）
+      // 情况3: 在 iframe 中（准备就绪）
       console.log('📦 在 iframe 中 - 通知父窗口已就绪');
       document.body.classList.add('iframe-mode'); // 隐藏 UI
       notifyParent('telegram_auth_ready');
       
     } else {
-      // 情况3: 在弹窗中但没有授权数据（等待授权）
-      console.log('⏳ 在弹窗中 - 等待授权');
-      showWaiting();
+      // 情况4: 直接访问（不应该发生）
+      console.log('⚠️ 直接访问 - 显示提示');
+      showDirectAccess();
     }
 
     function handleAuthResult(hash) {
@@ -192,9 +197,15 @@
     }
 
     function showWaiting() {
-      document.getElementById('title').textContent = '等待授权';
-      document.getElementById('subtitle').textContent = '请在此窗口中完成 Telegram 登录';
+      document.getElementById('title').textContent = '准备跳转';
+      document.getElementById('subtitle').textContent = '即将打开 Telegram 授权页面...';
       document.getElementById('icon').innerHTML = '<div class="spinner"></div>';
+    }
+
+    function showDirectAccess() {
+      document.getElementById('title').textContent = '请勿直接访问';
+      document.getElementById('subtitle').textContent = '此页面仅供 Telegram 授权使用';
+      document.getElementById('icon').innerHTML = '';
     }
 
     function notifyParent(type, data = null, error = null) {
@@ -206,6 +217,7 @@
       };
 
       console.log('📤 准备发送消息:', message);
+      console.log('📤 发送目标: opener=' + !!window.opener + ', parent=' + (window.parent !== window));
 
       // 🔥 优先发送给 opener（如果在弹窗中）
       if (window.opener && window.opener !== window) {
