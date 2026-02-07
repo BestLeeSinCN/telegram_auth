@@ -177,11 +177,23 @@
   }
 
   // 🔥 处理 Telegram OAuth 的 postMessage
-  function handleTelegramOAuthMessage(data) {
+  function handleTelegramOAuthMessage(rawData) {
     console.log('🔍 [Bridge/iframe] 处理 Telegram OAuth 消息');
-    console.log('   完整数据:', data);
+    console.log('   原始数据类型:', typeof rawData);
+    console.log('   原始数据:', rawData);
 
     try {
+      // 🔥 关键修复：如果是字符串，先解析为对象
+      let data = rawData;
+      if (typeof rawData === 'string') {
+        console.log('   检测到字符串，进行 JSON 解析');
+        data = JSON.parse(rawData);
+      }
+
+      console.log('   解析后的数据:', data);
+      console.log('   data.event:', data?.event);
+      console.log('   data.result:', data?.result);
+
       // Telegram 的消息格式：
       // { event: "auth_result", result: {...}, origin: "..." }
       if (data && data.event === 'auth_result' && data.result) {
@@ -201,10 +213,11 @@
         });
       } else {
         console.log('⚠️ [Bridge/iframe] 未知的 Telegram 消息格式');
-        console.log('   data.event:', data?.event);
+        console.log('   完整 data 对象:', JSON.stringify(data, null, 2));
       }
     } catch (e) {
       console.error('❌ [Bridge/iframe] 处理 Telegram 消息失败:', e);
+      console.error('   错误堆栈:', e.stack);
       notifyFlutter({
         type: 'telegram_auth_error',
         error: '处理授权数据失败'
