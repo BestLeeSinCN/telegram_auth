@@ -146,25 +146,70 @@
       console.log('   origin:', event.origin);
       console.log('   data:', event.data);
 
-      // 验证来源（来自同域的弹窗）
-      if (event.origin !== location.origin) {
-        console.log('⚠️ [Bridge/iframe] 忽略非预期来源');
+      // 🔥 处理来自 Telegram OAuth 的直接消息
+      if (event.origin === 'https://oauth.telegram.org') {
+        console.log('📋 [Bridge/iframe] 来自 Telegram OAuth 的消息');
+        handleTelegramOAuthMessage(event.data);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         return;
       }
 
-      if (event.data && typeof event.data === 'object') {
-        const { type } = event.data;
-        console.log('📋 [Bridge/iframe] 消息类型:', type);
+      // 🔥 处理来自同域弹窗的转发消息
+      if (event.origin === location.origin) {
+        console.log('📋 [Bridge/iframe] 来自弹窗的消息');
+        if (event.data && typeof event.data === 'object') {
+          const { type } = event.data;
+          console.log('   消息类型:', type);
 
-        if (type === 'telegram_auth_success' || type === 'telegram_auth_error') {
-          // 转发给 Flutter
-          notifyFlutter(event.data);
+          if (type === 'telegram_auth_success' || type === 'telegram_auth_error') {
+            // 转发给 Flutter
+            notifyFlutter(event.data);
+          }
         }
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        return;
       }
 
+      // 其他来源，忽略
+      console.log('⚠️ [Bridge/iframe] 忽略非预期来源');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     });
+  }
+
+  // 🔥 处理 Telegram OAuth 的 postMessage
+  function handleTelegramOAuthMessage(data) {
+    console.log('🔍 [Bridge/iframe] 处理 Telegram OAuth 消息');
+    console.log('   完整数据:', data);
+
+    try {
+      // Telegram 的消息格式：
+      // { event: "auth_result", result: {...}, origin: "..." }
+      if (data && data.event === 'auth_result' && data.result) {
+        console.log('✅ [Bridge/iframe] Telegram 授权成功');
+        console.log('   授权数据:', data.result);
+        
+        // 转换为统一格式并发送给 Flutter
+        notifyFlutter({
+          type: 'telegram_auth_success',
+          data: data.result  // result 包含 id, first_name, username 等
+        });
+      } else if (data && data.event === 'auth_user_cancel') {
+        console.log('⚠️ [Bridge/iframe] 用户取消授权');
+        notifyFlutter({
+          type: 'telegram_auth_error',
+          error: '用户取消授权'
+        });
+      } else {
+        console.log('⚠️ [Bridge/iframe] 未知的 Telegram 消息格式');
+        console.log('   data.event:', data?.event);
+      }
+    } catch (e) {
+      console.error('❌ [Bridge/iframe] 处理 Telegram 消息失败:', e);
+      notifyFlutter({
+        type: 'telegram_auth_error',
+        error: '处理授权数据失败'
+      });
+    }
   }
 
   function notifyFlutter(message) {
@@ -187,7 +232,7 @@
     console.log('🪟 [Bridge] 运行模式：弹窗');
 
     if (hasAuthResult) {
-      // Telegram 已回调，处理授权结果
+      // Telegram 已回调（URL Hash 方式），处理授权结果
       handleAuthResult(hash);
     } else {
       // 首次打开，跳转到 Telegram
@@ -226,7 +271,7 @@
   }
 
   function handleAuthResult(hash) {
-    console.log('🔍 [Bridge/popup] 处理授权结果');
+    console.log('🔍 [Bridge/popup] 处理授权结果 (URL Hash 方式)');
     console.log('   Hash:', hash);
 
     try {
