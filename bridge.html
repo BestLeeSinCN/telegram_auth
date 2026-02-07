@@ -43,6 +43,7 @@
   <p id="subtitle">正在跳转到 Telegram…</p>
   <div class="spinner"></div>
 </div>
+
 <script>
   console.log('🚀 Bridge 加载:', location.href);
   
@@ -53,22 +54,27 @@
   const hash = location.hash;
   const hasAuthResult = hash.startsWith('#tgAuthResult=');
 
-  // 🔥 关键修复1：先保存 opener 引用到 sessionStorage
-  if (window.opener && !hasAuthResult) {
-    console.log('💾 保存弹窗状态');
-    sessionStorage.setItem('isPopupWindow', 'true');
-    sessionStorage.setItem('flutterOrigin', flutterOrigin);
-  }
+  // 🔥 检查是否是弹窗环境
+  const isPopupWindow = window.opener && window.opener !== window;
+  
+  console.log('📋 环境检查:', {
+    isPopupWindow,
+    hasOpener: !!window.opener,
+    flutterOrigin,
+    hasAuthResult
+  });
 
   if (hasAuthResult) {
+    // 如果 URL 中已经有授权结果，直接处理
     handleAuthResult(hash);
   } else {
+    // 否则跳转到 Telegram 授权
     openTelegramAuth();
   }
 
   function openTelegramAuth() {
     const telegramOrigin = location.origin;
-    const returnTo = location.origin + location.pathname + location.search; // 🔥 保留查询参数
+    const returnTo = location.origin + location.pathname + location.search;
     const authUrl =
       'https://oauth.telegram.org/auth'
       + '?bot_id=' + botId
@@ -76,15 +82,21 @@
       + '&return_to=' + encodeURIComponent(returnTo)
       + '&request_access=' + requestAccess;
 
-    console.log('🔐 Telegram OAuth URL:', authUrl);
+    console.log('🔐 跳转到 Telegram OAuth');
+    console.log('   Auth URL:', authUrl);
+    console.log('   Return to:', returnTo);
     
-    // 🔥 关键修复2：改用 location.replace，保持在同一个窗口上下文
+    // 🔥 直接跳转（不使用 noopener）
     setTimeout(() => {
-      location.replace(authUrl);
+      window.location.href = authUrl;
     }, 500);
   }
 
   function handleAuthResult(hash) {
+    console.log('🔍 开始处理授权结果');
+    console.log('   Hash:', hash);
+    console.log('   window.opener 存在:', !!window.opener);
+    
     try {
       const encoded = hash.replace('#tgAuthResult=', '');
       const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
@@ -96,52 +108,57 @@
       );
       const data = JSON.parse(json);
       
-      console.log('✅ 授权成功:', data);
-      
-      // 🔥 关键修复3：从 sessionStorage 恢复状态
-      const isPopup = sessionStorage.getItem('isPopupWindow') === 'true';
-      const savedFlutterOrigin = sessionStorage.getItem('flutterOrigin');
-      
-      console.log('📋 窗口状态:', { isPopup, savedFlutterOrigin });
+      console.log('✅ 授权数据解析成功:', data);
 
-      if (isPopup && savedFlutterOrigin) {
-        notifyFlutter('telegram_auth_success', data, null, savedFlutterOrigin);
+      // 🔥 关键：检查是否在弹窗中打开
+      if (window.opener && window.opener !== window) {
+        console.log('📤 发送消息到 Flutter (opener 存在)');
+        console.log('   Target origin:', flutterOrigin);
         
-        // 给一点时间确保消息发送成功
+        const message = {
+          type: 'telegram_auth_success',
+          data: data,
+          error: null
+        };
+        
+        console.log('   Message:', message);
+        
+        try {
+          window.opener.postMessage(message, flutterOrigin);
+          console.log('✅ 消息已发送');
+        } catch (e) {
+          console.error('❌ postMessage 失败:', e);
+        }
+        
+        // 延迟关闭，确保消息发送成功
         setTimeout(() => {
-          console.log('🚪 关闭授权弹窗');
-          sessionStorage.clear();
+          console.log('🚪 关闭弹窗');
           window.close();
-        }, 1000);
+        }, 1500);
       } else {
-        console.log('ℹ️ 非弹窗环境或缺少配置');
+        console.log('ℹ️ 非弹窗环境，无法发送消息');
+        console.log('   window.opener:', window.opener);
+        console.log('   window.opener === window:', window.opener === window);
+        
         document.getElementById('title').textContent = '授权成功';
-        document.getElementById('subtitle').textContent = '请关闭此页面';
+        document.getElementById('subtitle').textContent = 'ID: ' + data.id;
         document.querySelector('.spinner').style.display = 'none';
       }
     } catch (e) {
-      console.error('❌ 解析失败', e);
-      const savedFlutterOrigin = sessionStorage.getItem('flutterOrigin');
-      notifyFlutter('telegram_auth_error', null, '授权数据解析失败', savedFlutterOrigin);
-    }
-  }
-
-  function notifyFlutter(type, data = null, error = null, targetOrigin = null) {
-    const message = { type, data, error };
-    console.log('📤 发送消息到 Flutter:', message);
-    
-    // 🔥 关键修复4：尝试多种方式发送消息
-    const origin = targetOrigin || flutterOrigin;
-    
-    if (window.opener && origin) {
-      console.log('📨 通过 window.opener 发送');
-      try {
-        window.opener.postMessage(message, origin);
-      } catch (e) {
-        console.error('❌ postMessage 失败:', e);
+      console.error('❌ 授权数据解析失败:', e);
+      
+      if (window.opener && flutterOrigin) {
+        const message = {
+          type: 'telegram_auth_error',
+          data: null,
+          error: '授权数据解析失败'
+        };
+        window.opener.postMessage(message, flutterOrigin);
       }
-    } else {
-      console.warn('⚠️ 无法发送消息:', { hasOpener: !!window.opener, origin });
+      
+      document.getElementById('title').textContent = '授权失败';
+      document.getElementById('subtitle').textContent = e.message;
+      document.querySelector('.spinner').style.display = 'none';
     }
   }
 </script>
