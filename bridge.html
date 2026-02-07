@@ -226,19 +226,22 @@
   }
 
   function notifyFlutter(message) {
-    console.log('📤 [Bridge/iframe] 转发消息到 Flutter');
-    console.log('   target origin:', flutterOrigin);
-    console.log('   message:', message);
+  console.log('📤 [Bridge/iframe] 转发消息到 Flutter');
+  console.log('   message:', message);
 
-    if (window.parent && window.parent !== window) {
-      try {
-        window.parent.postMessage(message, flutterOrigin || '*');
-        console.log('✅ [Bridge/iframe] 消息已发送');
-      } catch (e) {
-        console.error('❌ [Bridge/iframe] postMessage 失败:', e);
-      }
+  if (window.parent && window.parent !== window) {
+    try {
+      // 🔥 动态获取父页面的 origin
+      const targetOrigin = document.referrer ? new URL(document.referrer).origin : '*';
+      console.log('   target origin:', targetOrigin);
+      
+      window.parent.postMessage(message, targetOrigin);
+      console.log('✅ [Bridge/iframe] 消息已发送');
+    } catch (e) {
+      console.error('❌ [Bridge/iframe] postMessage 失败:', e);
     }
   }
+}
 
   // ==================== 弹窗模式 ====================
   function runAsPopup() {
