@@ -113,7 +113,7 @@
   }
 
   function openSelfAsPopup() {
-    const popupUrl = location.href; // 同样的 URL，但在新窗口中打开
+    const popupUrl = location.href;
 
     console.log('🪟 [Bridge/iframe] 打开新窗口');
     console.log('   URL:', popupUrl);
@@ -132,9 +132,36 @@
         type: 'telegram_auth_error',
         error: '弹窗被浏览器拦截，请允许弹窗后重试'
       });
-    } else {
-      console.log('✅ [Bridge/iframe] 新窗口已打开');
+      return;
     }
+
+    console.log('✅ [Bridge/iframe] 新窗口已打开');
+
+    // 🔥 新增：轮询检测窗口是否被用户手动关闭
+    let authCompleted = false;
+
+    // 监听授权完成的标记（避免正常关闭也触发 cancel）
+    window.addEventListener('message', (event) => {
+      if (event.origin === location.origin) {
+        const type = event.data?.type;
+        if (type === 'telegram_auth_success' || type === 'telegram_auth_error') {
+          authCompleted = true;
+        }
+      }
+    }, { once: false });
+
+    const pollTimer = setInterval(() => {
+      if (authWindow.closed) {
+        clearInterval(pollTimer);
+        if (!authCompleted) {
+          console.log('🚪 [Bridge/iframe] 用户手动关闭了授权窗口');
+          notifyFlutter({
+            type: 'telegram_auth_error',
+            error: '用户取消授权'
+          });
+        }
+      }
+    }, 500);
   }
 
   function setupIframeMessageListener() {
