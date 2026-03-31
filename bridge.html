@@ -58,7 +58,7 @@
 <script>
   console.log('🚀 [Bridge] 页面加载');
   console.log('   URL:', location.href);
-  
+
   // 获取参数
   const params = new URLSearchParams(location.search);
   const botId = params.get('bot_id');
@@ -102,11 +102,11 @@
       return;
     }
 
+    // 先设置消息监听，再打开弹窗
+    setupIframeMessageListener();
+
     // 打开新窗口（自己）
     openSelfAsPopup();
-
-    // 监听来自新窗口的消息
-    setupIframeMessageListener();
 
     // 通知 Flutter iframe 已就绪
     notifyFlutter({ type: 'telegram_bridge_ready' });
@@ -137,28 +137,27 @@
 
     console.log('✅ [Bridge/iframe] 新窗口已打开');
 
-    // 🔥 新增：轮询检测窗口是否被用户手动关闭
+    // 🔥 轮询检测弹窗是否被用户手动关闭
+    // authCompleted 标志：当授权成功/失败消息已收到时置为 true，
+    // 避免弹窗正常关闭后被误判为"用户取消"
     let authCompleted = false;
 
-    // 监听授权完成的标记（避免正常关闭也触发 cancel）
-    window.addEventListener('message', (event) => {
-      if (event.origin === location.origin) {
-        const type = event.data?.type;
-        if (type === 'telegram_auth_success' || type === 'telegram_auth_error') {
-          authCompleted = true;
-        }
-      }
-    }, { once: false });
+    // 提供一个全局方法，让消息监听器通知轮询"授权已完成"
+    window._markAuthCompleted = () => {
+      authCompleted = true;
+    };
 
     const pollTimer = setInterval(() => {
       if (authWindow.closed) {
         clearInterval(pollTimer);
         if (!authCompleted) {
-          console.log('🚪 [Bridge/iframe] 用户手动关闭了授权窗口');
+          console.log('🚪 [Bridge/iframe] 用户手动关闭了授权弹窗');
           notifyFlutter({
             type: 'telegram_auth_error',
             error: '用户取消授权'
           });
+        } else {
+          console.log('✅ [Bridge/iframe] 弹窗已关闭，授权流程已正常结束');
         }
       }
     }, 500);
@@ -189,6 +188,10 @@
           console.log('   消息类型:', type);
 
           if (type === 'telegram_auth_success' || type === 'telegram_auth_error') {
+            // 🔥 标记授权流程已结束，防止弹窗关闭时被轮询误判为"用户取消"
+            if (typeof window._markAuthCompleted === 'function') {
+              window._markAuthCompleted();
+            }
             // 转发给 Flutter
             notifyFlutter(event.data);
           }
@@ -203,14 +206,13 @@
     });
   }
 
-  // 🔥 处理 Telegram OAuth 的 postMessage
+  // 🔥 处理 Telegram OAuth 的 postMessage（Telegram 直接向 iframe 发消息的情况）
   function handleTelegramOAuthMessage(rawData) {
     console.log('🔍 [Bridge/iframe] 处理 Telegram OAuth 消息');
     console.log('   原始数据类型:', typeof rawData);
     console.log('   原始数据:', rawData);
 
     try {
-      // 🔥 关键修复：如果是字符串，先解析为对象
       let data = rawData;
       if (typeof rawData === 'string') {
         console.log('   检测到字符串，进行 JSON 解析');
@@ -221,23 +223,34 @@
       console.log('   data.event:', data?.event);
       console.log('   data.result:', data?.result);
 
-      // Telegram 的消息格式：
-      // { event: "auth_result", result: {...}, origin: "..." }
+      // Telegram 的消息格式：{ event: "auth_result", result: {...}, origin: "..." }
       if (data && data.event === 'auth_result' && data.result) {
         console.log('✅ [Bridge/iframe] Telegram 授权成功');
         console.log('   授权数据:', data.result);
-        
-        // 转换为统一格式并发送给 Flutter
+
+        // 🔥 标记授权已完成
+        if (typeof window._markAuthCompleted === 'function') {
+          window._markAuthCompleted();
+        }
+
         notifyFlutter({
           type: 'telegram_auth_success',
-          data: data.result  // result 包含 id, first_name, username 等
+          data: data.result
         });
+
       } else if (data && data.event === 'auth_user_cancel') {
-        console.log('⚠️ [Bridge/iframe] 用户取消授权');
+        console.log('⚠️ [Bridge/iframe] 用户取消授权（Telegram 通知）');
+
+        // 🔥 标记授权已完成（取消也算完成，防止重复报错）
+        if (typeof window._markAuthCompleted === 'function') {
+          window._markAuthCompleted();
+        }
+
         notifyFlutter({
           type: 'telegram_auth_error',
           error: '用户取消授权'
         });
+
       } else {
         console.log('⚠️ [Bridge/iframe] 未知的 Telegram 消息格式');
         console.log('   完整 data 对象:', JSON.stringify(data, null, 2));
@@ -253,22 +266,22 @@
   }
 
   function notifyFlutter(message) {
-  console.log('📤 [Bridge/iframe] 转发消息到 Flutter');
-  console.log('   message:', message);
+    console.log('📤 [Bridge/iframe] 转发消息到 Flutter');
+    console.log('   message:', message);
 
-  if (window.parent && window.parent !== window) {
-    try {
-      // 🔥 动态获取父页面的 origin
-      const targetOrigin = document.referrer ? new URL(document.referrer).origin : '*';
-      console.log('   target origin:', targetOrigin);
-      
-      window.parent.postMessage(message, targetOrigin);
-      console.log('✅ [Bridge/iframe] 消息已发送');
-    } catch (e) {
-      console.error('❌ [Bridge/iframe] postMessage 失败:', e);
+    if (window.parent && window.parent !== window) {
+      try {
+        // 🔥 动态获取父页面的 origin
+        const targetOrigin = document.referrer ? new URL(document.referrer).origin : '*';
+        console.log('   target origin:', targetOrigin);
+
+        window.parent.postMessage(message, targetOrigin);
+        console.log('✅ [Bridge/iframe] 消息已发送');
+      } catch (e) {
+        console.error('❌ [Bridge/iframe] postMessage 失败:', e);
+      }
     }
   }
-}
 
   // ==================== 弹窗模式 ====================
   function runAsPopup() {
@@ -296,7 +309,7 @@
     updateUI('正在跳转...', '即将打开 Telegram 授权页面');
 
     const telegramOrigin = location.origin;
-    const returnTo = location.href; // 回调到自己
+    const returnTo = location.href;
     const authUrl =
       'https://oauth.telegram.org/auth'
       + '?bot_id=' + encodeURIComponent(botId)
@@ -318,7 +331,6 @@
     console.log('   Hash:', hash);
 
     try {
-      // 解析 Telegram 返回的数据
       const encoded = hash.replace('#tgAuthResult=', '');
       const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
       const decoded = atob(base64);
@@ -328,7 +340,7 @@
         ).join('')
       );
       const data = JSON.parse(json);
-      
+
       console.log('✅ [Bridge/popup] 授权成功:', data);
 
       showSuccess('授权成功', '正在返回...');
@@ -347,7 +359,7 @@
 
     } catch (e) {
       console.error('❌ [Bridge/popup] 解析失败:', e);
-      
+
       showError('授权失败', '数据解析失败: ' + e.message);
 
       notifyOpener({
